@@ -91,6 +91,11 @@ BSRoformer::~BSRoformer() {
 }
 
 void BSRoformer::Initialize(const std::string& model_path) {
+    // GGML_BACKEND_DL: register the per-ISA CPU modules (ggml-cpu-<variant>) and the GPU backend shipped beside the
+    // program once, before a backend is chosen, so the best CPU variant for this processor is picked by cpuid and a
+    // processor without AVX2 runs on the baseline module. A no-op in a static build, so safe either way.
+    static bool backends_loaded = [] { ggml_backend_load_all(); return true; }();
+    (void)backends_loaded;
     if (EnvIsSet("BSR_FORCE_CPU")) {
         backend_ = ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr);
     } else {

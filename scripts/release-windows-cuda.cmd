@@ -42,7 +42,7 @@ rem settings come from this script alone, not from a cache an earlier run left
 cmake --fresh -S . -B "%BUILD%" -G Ninja -DCMAKE_BUILD_TYPE=Release -DGGML_DIR=ggml ^
   -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl ^
   -DGGML_CUDA=ON -DGGML_CUDA_FORCE_MMQ=ON -DGGML_CUDA_NCCL=OFF -DBSR_BUILD_TESTS=OFF -DBSR_BUILD_CLI=ON ^
-  -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_BMI2=ON -DGGML_AVX512=OFF ^
+  -DBUILD_SHARED_LIBS=ON -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON -DGGML_NATIVE=OFF ^
   %FLAGS% >nul || (echo [ERROR] configure & exit /b 1)
 echo [..] build
 start "" /b /belownormal /wait cmake --build "%BUILD%" -j 8 || (echo [ERROR] build & exit /b 1)

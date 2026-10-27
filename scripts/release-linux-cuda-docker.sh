@@ -30,18 +30,19 @@ if [ "${1:-}" = "--inside" ]; then
   rm -rf "/cache/build-$backend/CMakeCache.txt"
   cmake -B "/cache/build-$backend" -G Ninja -DCMAKE_BUILD_TYPE=Release -DGGML_DIR=ggml \
     -DGGML_CUDA=ON -DGGML_CUDA_FORCE_MMQ=ON -DGGML_CUDA_NCCL=OFF -DBSR_BUILD_TESTS=OFF -DBSR_BUILD_CLI=ON \
-    -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_BMI2=ON -DGGML_AVX512=OFF \
+    -DBUILD_SHARED_LIBS=ON -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON -DGGML_NATIVE=OFF \
     '-DCMAKE_BUILD_RPATH=$ORIGIN;$ORIGIN/../../models/higgs-engine;$ORIGIN/../../models/cuda12-runtime' "${flags[@]}" >/dev/null
   echo "[..] build"
   cmake --build "/cache/build-$backend" -j "$(( $(nproc) * 3 / 4 ))" 2>&1 | tail -3
   out="/out/$backend"
   rm -rf "$out" && mkdir -p "$out"
   cp "$(find "/cache/build-$backend" -name bs_roformer-cli -type f -perm -u+x | head -1)" "$out/"
-  # only the names the loader asks for (each library's SONAME), not the version links that copy the same file again
-  find "/cache/build-$backend" -name 'libggml*.so.0' | while read -r f; do cp -L "$f" "$out/"; done
+  # core libs by SONAME plus the loadable backend modules (ggml-cpu-<variant> and ggml-cuda — no version suffix) that
+  # ggml_backend_load_all picks from at run time by cpuid; not the version links that copy the same file again
+  find "/cache/build-$backend" \( -name 'libggml.so.0' -o -name 'libggml-base.so.0' -o -name 'libggml-cpu-*.so' -o -name 'libggml-cuda.so' \) | while read -r f; do cp -L "$f" "$out/"; done
   cp "$(gcc -print-file-name=libgomp.so.1)" "$out/"
   # the CUDA toolkit's folder of the build machine must not reach a user's machine
-  for f in "$out"/bs_roformer-cli "$out"/libggml*.so.0; do patchelf --set-rpath '$ORIGIN:$ORIGIN/../../models/higgs-engine:$ORIGIN/../../models/cuda12-runtime' "$f"; done
+  for f in "$out"/bs_roformer-cli "$out"/libggml*.so*; do patchelf --set-rpath '$ORIGIN:$ORIGIN/../../models/higgs-engine:$ORIGIN/../../models/cuda12-runtime' "$f"; done
   for f in "$out"/*; do echo "$(basename "$f"): zmm $(objdump -d --no-show-raw-insn "$f" | grep -c '%zmm' || true)"; done
   readelf -d "$out/bs_roformer-cli" | grep -E 'NEEDED|RUNPATH'
   sha256sum "$out"/*
